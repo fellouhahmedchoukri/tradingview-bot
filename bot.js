@@ -1,47 +1,48 @@
 const express = require("express");
 const bodyParser = require("body-parser");
+const dotenv = require("dotenv");
+
+// Chargement des variables d'environnement
+dotenv.config();
 
 const app = express();
 const port = process.env.PORT || 3000;
 
-// 🔐 Ton token secret ici (à garder confidentiel)
-const SECRET_TOKEN = process.env.SECRET_TOKEN || "MON_TOKEN_SECRET_123";
+const SECRET_TOKEN = process.env.SECRET_TOKEN;
 
 app.use(bodyParser.json());
 
 app.post("/webhook", (req, res) => {
-  const data = req.body;
+  const { action, symbol, side, price, token } = req.body;
 
-  console.log("✅ Signal reçu :", data);
+  console.log("✅ Signal reçu :", req.body);
 
-  const { action, symbol, side, price, token } = data;
+  // 🔐 Vérification du token encodé en base64
+  const decodedToken = Buffer.from(token, "base64").toString("utf-8").trim();
+  const expectedToken = SECRET_TOKEN.trim();
 
-  // 🔐 Vérification du token
-  if (token !== SECRET_TOKEN) {
+  // 🔍 Affichage debug pour comparaison
+  console.log("🔍 Token décodé :", decodedToken);
+  console.log("🔐 SECRET_TOKEN :", expectedToken);
+
+  if (decodedToken !== expectedToken) {
     console.log("❌ Accès refusé : token invalide !");
     return res.status(403).json({ error: "Token invalide" });
   }
 
-  if (!action || !symbol) {
-    console.log("❌ Champs requis manquants !");
-    return res.status(400).json({ error: "action et symbol sont requis." });
-  }
-
-  if (action === "entry" && side === "buy") {
-    console.log(`📥 Signal D'ACHAT reçu pour ${symbol} à ${price}`);
+  // ✅ Token valide, exécution de l'action
+  if (action === "entry") {
+    console.log(`📥 ACHAT pour ${symbol} à ${price}`);
+    // ➕ Ajoute ici ta logique d’achat réelle
   } else if (action === "exit") {
-    console.log(`📤 Signal de VENTE reçu pour ${symbol}`);
-  } else if (action === "grid_destroyed") {
-    console.log(`💥 Grid détruit pour ${symbol}`);
+    console.log(`📤 VENTE pour ${symbol} à ${price}`);
+    // ➕ Ajoute ici ta logique de vente réelle
   } else {
-    console.log("❓ Action inconnue :", action);
+    console.log("❗ Action inconnue :", action);
+    return res.status(400).json({ error: "Action non reconnue" });
   }
 
-  res.json({ message: "✅ Signal sécurisé traité avec succès." });
-});
-
-app.get("/", (req, res) => {
-  res.send("🔐 Webhook sécurisé actif !");
+  res.status(200).json({ message: "Signal reçu et authentifié" });
 });
 
 app.listen(port, () => {
