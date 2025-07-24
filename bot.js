@@ -8,10 +8,10 @@ const PORT = 3000;
 
 app.use(bodyParser.json());
 
-// 🔐 Token en base64 dans l'alerte TradingView
-const SECRET_TOKEN = '#1960AlGeR@+='; // Ton vrai token ici
+// 🔐 Token en clair à valider (doit correspondre au token décodé)
+const SECRET_TOKEN = '#1960AlGeR@+=';
 
-// 🔁 Route webhook sécurisée
+// 🔁 Route webhook
 app.post('/webhook', (req, res) => {
   const data = req.body;
 
@@ -22,11 +22,13 @@ app.post('/webhook', (req, res) => {
   console.log('🔍 Token décodé :', decodedToken);
   console.log('🔐 SECRET_TOKEN :', SECRET_TOKEN);
 
+  // 🔒 Vérification du token
   if (decodedToken !== SECRET_TOKEN) {
     console.log('❌ Accès refusé : token invalide !');
     return res.status(403).json({ message: 'Token invalide' });
   }
 
+  // 🧩 Extraction des données (avec valeurs par défaut)
   const {
     action = 'unknown',
     symbol = 'UNKNOWN',
@@ -36,6 +38,7 @@ app.post('/webhook', (req, res) => {
     position_size = 'N/A'
   } = data;
 
+  // 🧾 Affichage complet
   console.log(`📥 ACTION : ${action}`);
   console.log(`📈 SYMBOLE : ${symbol}`);
   console.log(`🧾 SIDE : ${side}`);
@@ -43,12 +46,19 @@ app.post('/webhook', (req, res) => {
   console.log(`📦 CONTRACTS : ${contracts}`);
   console.log(`📊 POSITION : ${position_size}`);
 
-  // 👉 Ici tu peux ajouter l’envoi vers Binance ou autre
+  // 🔁 Traitement basé sur le "side"
+  if (side.toLowerCase() === 'buy') {
+    console.log(`✅ 📥 ACHAT ${symbol} à ${price}`);
+  } else if (side.toLowerCase() === 'sell') {
+    console.log(`✅ 📤 VENTE ${symbol} à ${price}`);
+  } else {
+    console.log(`❗ Action inconnue : ${action} avec side=${side}`);
+  }
 
   return res.status(200).json({ message: 'Signal reçu et authentifié' });
 });
 
-// 🟢 Démarrer le serveur
+// 🟢 Lancement du serveur
 app.listen(PORT, () => {
   console.log(`🟢 Serveur sécurisé lancé sur le port ${PORT}`);
 });
