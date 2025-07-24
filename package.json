@@ -2,7 +2,6 @@
   "name": "tradingview-binance-bot",
   "version": "1.0.0",
   "description": "Bot pour TradingView et Binance Futures",
-  "type": "module",
   "main": "bot.js",
   "scripts": {
     "start": "node bot.js"
