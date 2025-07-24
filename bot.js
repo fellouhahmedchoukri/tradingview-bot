@@ -7,7 +7,7 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 app.use(bodyParser.json());
 
-// Ton secret webhook (décodé)
+// Ton secret webhook
 const SECRET_TOKEN = (process.env.SECRET_TOKEN || '').trim();
 
 // Initialisation Binance Futures Testnet
@@ -23,43 +23,41 @@ app.post('/webhook', async (req, res) => {
   console.log('✅ Signal reçu :', data);
 
   // Vérification du token
-  const decoded = Buffer.from(data.token || '', 'base64')
-                        .toString('utf-8').trim();
+  const decoded = Buffer.from(data.token||'', 'base64').toString('utf-8').trim();
   if (decoded !== SECRET_TOKEN) {
     console.log('❌ Token invalide');
     return res.status(403).json({ error: 'Token invalide' });
   }
 
   // Extraction
-  const { symbol = '', side = '', price = null, contracts = '0' } = data;
+  const { symbol='', side='', price=null, contracts='0' } = data;
   console.log(`📈 ${symbol} – ${side} – QTY=${contracts} @ ${price||'MARKET'}`);
 
   try {
-    let order;
+    let orderResponse;
+
     if (price) {
-      // LIMIT Order
-      order = await binance.futuresOrder({
-        symbol,
-        side:         side.toUpperCase(),
-        type:         'LIMIT',
-        quantity:     contracts,
-        price,
-        timeInForce:  'GTC'
-      });
+      // LIMIT order
+      if (side.toLowerCase() === 'buy') {
+        orderResponse = await binance.futuresBuy(symbol, contracts, price, { timeInForce: 'GTC' });
+      } else {
+        orderResponse = await binance.futuresSell(symbol, contracts, price, { timeInForce: 'GTC' });
+      }
     } else {
-      // MARKET Order
-      order = await binance.futuresOrder({
-        symbol,
-        side:      side.toUpperCase(),
-        type:      'MARKET',
-        quantity:  contracts
-      });
+      // MARKET order
+      if (side.toLowerCase() === 'buy') {
+        orderResponse = await binance.futuresMarketBuy(symbol, contracts);
+      } else {
+        orderResponse = await binance.futuresMarketSell(symbol, contracts);
+      }
     }
-    console.log('✅ Ordre Testnet créé :', order);
-    return res.status(200).json({ message: 'Ordre envoyé', order });
-  } catch (e) {
-    console.error('❌ Erreur Binance :', e.body || e);
-    return res.status(500).json({ error: 'Erreur Binance', details: e.body || e });
+
+    console.log('✅ Ordre Testnet créé :', orderResponse);
+    return res.status(200).json({ message: 'Ordre envoyé', order: orderResponse });
+
+  } catch (err) {
+    console.error('❌ Erreur Binance :', err.body || err);
+    return res.status(500).json({ error: 'Erreur Binance', details: err.body || err });
   }
 });
 
