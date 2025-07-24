@@ -1,7 +1,6 @@
 require('dotenv').config();
 const express = require('express');
 const bodyParser = require('body-parser');
-//const atob = require('atob');
 
 const app = express();
 const PORT = 3000;
@@ -14,7 +13,9 @@ app.post('/webhook', (req, res) => {
   const data = req.body;
   console.log('✅ Signal reçu :', data);
 
-  const decodedToken = atob(data.token || '');
+  const encodedToken = data.token || '';
+  const decodedToken = Buffer.from(encodedToken, 'base64').toString('utf-8');
+
   console.log('🔍 Token décodé :', decodedToken);
   console.log('🔐 SECRET_TOKEN :', SECRET_TOKEN);
 
@@ -39,8 +40,7 @@ app.post('/webhook', (req, res) => {
   console.log(`📦 CONTRACTS : ${contracts}`);
   console.log(`📊 POSITION : ${position_size}`);
 
-  // Ne PAS vérifier l'action : ignorer "O #3", "entry", etc.
-  // Utiliser uniquement `side`
+  // Traitement selon le type d’ordre (buy/sell)
   if (side.toLowerCase() === 'buy') {
     console.log(`✅ 📥 ACHAT ${symbol} à ${price}`);
   } else if (side.toLowerCase() === 'sell') {
