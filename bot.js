@@ -1,4 +1,3 @@
-// bot.js
 require('dotenv').config();
 const express = require('express');
 const bodyParser = require('body-parser');
@@ -8,15 +7,15 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 app.use(bodyParser.json());
 
-// Ton secret webhook (base64 décodé)
+// Ton secret webhook (décodé)
 const SECRET_TOKEN = (process.env.SECRET_TOKEN || '').trim();
 
-// Initialisation du client Binance Futures Testnet
+// Initialisation Binance Futures Testnet
 const binance = new Binance().options({
-  APIKEY: process.env.BINANCE_API_KEY,
+  APIKEY:    process.env.BINANCE_API_KEY,
   APISECRET: process.env.BINANCE_API_SECRET,
-  test: true,
-  urls: { base: 'https://testnet.binancefuture.com' }
+  test:      true,
+  urls:      { base: 'https://testnet.binancefuture.com' }
 });
 
 app.post('/webhook', async (req, res) => {
@@ -24,40 +23,40 @@ app.post('/webhook', async (req, res) => {
   console.log('✅ Signal reçu :', data);
 
   // Vérification du token
-  const decoded = Buffer.from(data.token||'', 'base64').toString('utf-8').trim();
+  const decoded = Buffer.from(data.token || '', 'base64')
+                        .toString('utf-8').trim();
   if (decoded !== SECRET_TOKEN) {
     console.log('❌ Token invalide');
     return res.status(403).json({ error: 'Token invalide' });
   }
 
-  const { symbol='', side='', price=null, contracts='0' } = data;
-  console.log(`📈 ${symbol} – ${side} – ${contracts} @ ${price || 'MARKET'}`);
+  // Extraction
+  const { symbol = '', side = '', price = null, contracts = '0' } = data;
+  console.log(`📈 ${symbol} – ${side} – QTY=${contracts} @ ${price||'MARKET'}`);
 
   try {
     let order;
     if (price) {
-      // LIMIT order
+      // LIMIT Order
       order = await binance.futuresOrder({
         symbol,
-        side: side.toUpperCase(),
-        type: 'LIMIT',
-        quantity: contracts,
+        side:         side.toUpperCase(),
+        type:         'LIMIT',
+        quantity:     contracts,
         price,
-        timeInForce: 'GTC'
+        timeInForce:  'GTC'
       });
     } else {
-      // MARKET order
+      // MARKET Order
       order = await binance.futuresOrder({
         symbol,
-        side: side.toUpperCase(),
-        type: 'MARKET',
-        quantity: contracts
+        side:      side.toUpperCase(),
+        type:      'MARKET',
+        quantity:  contracts
       });
     }
-
     console.log('✅ Ordre Testnet créé :', order);
     return res.status(200).json({ message: 'Ordre envoyé', order });
-
   } catch (e) {
     console.error('❌ Erreur Binance :', e.body || e);
     return res.status(500).json({ error: 'Erreur Binance', details: e.body || e });
