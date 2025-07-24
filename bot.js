@@ -52,22 +52,25 @@ app.post('/webhook', async (req, res) => {
       .join('&');
     orderParams.signature = CryptoJS.HmacSHA256(queryString, config.BINANCE_API_SECRET).toString();
 
-    // Exécution
+    // Exécution sur TESTNET
     const response = await axios.post(
-      'https://fapi.binance.com/fapi/v1/order',
+      'https://testnet.binancefuture.com/fapi/v1/order',  // URL Testnet
       null,
       {
         params: orderParams,
-        headers: { 'X-MBX-APIKEY': config.BINANCE_API_KEY }
+        headers: { 
+          'X-MBX-APIKEY': config.BINANCE_API_KEY,
+          'Content-Type': 'application/json'
+        }
       }
     );
 
-    console.log('✅ Ordre exécuté:', response.data);
+    console.log('✅ Ordre exécuté sur Testnet:', response.data);
     res.json({ status: 'success', data: response.data });
 
   } catch (error) {
     const errData = error.response?.data || error.message;
-    console.error('❌ Erreur:', errData);
+    console.error('❌ Erreur Testnet:', errData);
     res.status(500).json({ 
       error: 'Échec de l\'ordre',
       details: errData 
@@ -79,5 +82,6 @@ app.post('/webhook', async (req, res) => {
 // LANCEMENT
 // ====================
 app.listen(config.WEBHOOK_PORT, () => {
-  console.log(`🚀 Webhook actif sur http://localhost:${config.WEBHOOK_PORT}`);
+  console.log(`🚀 Webhook Testnet actif sur http://localhost:${config.WEBHOOK_PORT}`);
+  console.log(`🔑 Clé API Testnet: ${config.BINANCE_API_KEY}`);
 });
