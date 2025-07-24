@@ -39,7 +39,8 @@ app.post('/webhook', (req, res) => {
   console.log(`📦 CONTRACTS : ${contracts}`);
   console.log(`📊 POSITION : ${position_size}`);
 
-  // Traitement selon le type d’ordre (buy/sell)
+  // Ne PAS vérifier l'action : ignorer "O #3", "entry", etc.
+  // Utiliser uniquement `side`
   if (side.toLowerCase() === 'buy') {
     console.log(`✅ 📥 ACHAT ${symbol} à ${price}`);
   } else if (side.toLowerCase() === 'sell') {
