@@ -1,14 +1,13 @@
 const express = require("express");
 const bodyParser = require("body-parser");
-require("dotenv").config();
 
 const app = express();
 const port = process.env.PORT || 3000;
 
-// 👇 Permet de lire les JSON envoyés par TradingView
+// Permet de lire les JSON envoyés par TradingView
 app.use(bodyParser.json());
 
-// ✅ Route principale Webhook
+// ✅ Webhook principal
 app.post("/webhook", (req, res) => {
   const data = req.body;
 
@@ -19,22 +18,19 @@ app.post("/webhook", (req, res) => {
   const side = data.side;
   const price = data.price;
 
-  // Vérification simple
   if (!action || !symbol) {
-    console.log("❌ Champs manquants !");
+    console.log("❌ Champs requis manquants !");
     return res.status(400).json({ error: "action et symbol sont requis." });
   }
 
-  // Traitement des actions
+  // Logique selon le signal
   if (action === "entry" && side === "buy") {
     console.log(`📥 Signal D'ACHAT reçu pour ${symbol} à ${price}`);
-    // 👉 Ici : logique d'achat
+    // 👉 Ajoute ici ton appel à Binance ou ta logique d’exécution
   } else if (action === "exit") {
     console.log(`📤 Signal de VENTE reçu pour ${symbol}`);
-    // 👉 Ici : logique de vente
   } else if (action === "grid_destroyed") {
     console.log(`💥 Grid détruit pour ${symbol}`);
-    // 👉 Ici : tout fermer
   } else {
     console.log("❓ Action inconnue :", action);
   }
@@ -42,12 +38,11 @@ app.post("/webhook", (req, res) => {
   res.json({ message: "✅ Signal traité avec succès." });
 });
 
-// 🔁 Test simple sur page d'accueil
+// Test GET
 app.get("/", (req, res) => {
-  res.send("🚀 Webhook TradingView opérationnel !");
+  res.send("🚀 Webhook TradingView est actif !");
 });
 
-// ▶️ Lancement serveur
 app.listen(port, () => {
   console.log(`🟢 Serveur lancé sur le port ${port}`);
 });
