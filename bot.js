@@ -6,82 +6,65 @@ import config from './config.js';
 const app = express();
 app.use(express.json());
 
-// ====================
-// MIDDLEWARE DE SECURITE
-// ====================
+// Middleware de sécurité
 app.use((req, res, next) => {
-  // 1. Authentification par clé
   if (req.headers['x-api-key'] !== config.SIGNING_KEY) {
-    console.warn('Accès non autorisé depuis IP:', req.ip);
+    console.warn('⚠️ Accès refusé : Clé API invalide');
     return res.status(401).json({ error: 'Clé API invalide' });
   }
   next();
 });
 
-// ====================
-// ENDPOINT PRINCIPAL
-// ====================
+// Endpoint principal
 app.post('/webhook', async (req, res) => {
   try {
-    console.log('📡 Requête reçue:', req.body);
+    console.log('\n📡 Requête reçue:', req.body);
 
-    // Validation minimale
     if (!req.body.symbol || !req.body.side) {
-      throw new Error('Paramètres manquants');
+      throw new Error('Symbol et side requis');
     }
 
-    // Formatage des paramètres (100% piloté par TradingView)
     const orderParams = {
       symbol: req.body.symbol.replace('PERP', '').toUpperCase(),
       side: req.body.side.toUpperCase(),
-      type: req.body.type || 'MARKET',      // 'LIMIT' si fourni
-      quantity: req.body.quantity,          // Doit être envoyé
+      type: req.body.type || 'MARKET',
+      quantity: req.body.quantity || 0.001, // Valeur par défaut
       timestamp: Date.now(),
-      recvWindow: 60000                     // Large fenêtre pour éviter les erreurs
+      recvWindow: 5000
     };
 
-    // Gestion des stops (optionnel)
-    if (req.body.stopPrice) {
-      orderParams.stopPrice = req.body.stopPrice;
-      orderParams.workingType = 'MARK_PRICE';
-    }
-
-    // Signature Binance
+    // Signature corrigée
     const queryString = Object.keys(orderParams)
-      .map(key => `${key}=${orderParams[key]}`)
+      .sort()
+      .map(key => `${key}=${encodeURIComponent(orderParams[key])}`)
       .join('&');
     orderParams.signature = CryptoJS.HmacSHA256(queryString, config.BINANCE_API_SECRET).toString();
 
-    // Exécution sur TESTNET
+    // URL CORRIGÉE POUR FUTURES TESTNET
     const response = await axios.post(
-      'https://testnet.binancefuture.com/fapi/v1/order',  // URL Testnet
+      'https://testnet.binancefuture.com/fapi/v1/order',
       null,
       {
         params: orderParams,
-        headers: { 
-          'X-MBX-APIKEY': config.BINANCE_API_KEY,
-          'Content-Type': 'application/json'
-        }
+        headers: { 'X-MBX-APIKEY': config.BINANCE_API_KEY }
       }
     );
 
-    console.log('✅ Ordre exécuté sur Testnet:', response.data);
+    console.log('✅ Ordre exécuté:', response.data);
     res.json({ status: 'success', data: response.data });
 
   } catch (error) {
-    const errData = error.response?.data || error.message;
-    console.error('❌ Erreur Testnet:', errData);
-    res.status(500).json({ 
+    console.error('❌ Erreur:', error.response?.data || error.message);
+    res.status(500).json({
       error: 'Échec de l\'ordre',
-      details: errData 
+      details: error.response?.data || error.message
     });
   }
 });
 
-// ====================
-// LANCEMENT
-// ====================
+// Démarrer le serveur
 app.listen(config.WEBHOOK_PORT, () => {
-  console.log(`🚀 Webhook Testnet actif sur http://localhost:${config.WEBHOOK_PORT}`);
-  console.log(`🔑 Clé API Testnet: ${config.BINANCE_API_KEY}`);
+  console.log(`\n🚀 Bot Futures Testnet actif sur le port ${config.WEBHOOK_PORT}`);
+  console.log(`🔗 Endpoint: /webhook`);
+  console.log(`🔑 Clé API: ${config.BINANCE_API_KEY}\n`);
 });
