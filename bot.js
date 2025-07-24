@@ -1,35 +1,26 @@
 require('dotenv').config();
 const express = require('express');
 const bodyParser = require('body-parser');
-const Binance = require('node-binance-api');
 
 const app = express();
 const PORT = 3000;
+
 app.use(bodyParser.json());
 
-// ✅ Clé secrète webhook
 const SECRET_TOKEN = '#1960AlGeR@+=';
 
-// ✅ Connexion Binance Testnet
-const binance = new Binance().options({
-  APIKEY: process.env.BINANCE_API_KEY,
-  APISECRET: process.env.BINANCE_API_SECRET,
-  test: true,
-  urls: {
-    base: 'https://testnet.binancefuture.com' // Bien testnet
-  }
-});
-
-app.post('/webhook', async (req, res) => {
+app.post('/webhook', (req, res) => {
   const data = req.body;
   console.log('✅ Signal reçu :', data);
 
   const encodedToken = data.token || '';
   const decodedToken = Buffer.from(encodedToken, 'base64').toString('utf-8');
+
   console.log('🔍 Token décodé :', decodedToken);
+  console.log('🔐 SECRET_TOKEN :', SECRET_TOKEN);
 
   if (decodedToken !== SECRET_TOKEN) {
-    console.log('❌ Token invalide');
+    console.log('❌ Accès refusé : token invalide !');
     return res.status(403).json({ message: 'Token invalide' });
   }
 
@@ -38,35 +29,30 @@ app.post('/webhook', async (req, res) => {
     symbol = 'UNKNOWN',
     side = 'UNKNOWN',
     price = 0,
-    contracts = 0,
-    position_size = 0
+    contracts = 'N/A',
+    position_size = 'N/A'
   } = data;
 
+  console.log(`📥 ACTION : ${action}`);
   console.log(`📈 SYMBOLE : ${symbol}`);
   console.log(`🧾 SIDE : ${side}`);
   console.log(`💰 PRIX : ${price}`);
-  console.log(`📦 QTE : ${contracts}`);
+  console.log(`📦 CONTRACTS : ${contracts}`);
+  console.log(`📊 POSITION : ${position_size}`);
 
-  // ✅ Envoyer ordre à Binance
-  try {
-    const response = await binance.futuresOrder({
-      symbol: symbol,
-      side: side.toUpperCase(),
-      type: 'LIMIT',
-      quantity: contracts,
-      price: price,
-      timeInForce: 'GTC'
-    });
-
-    console.log('✅ Ordre Binance envoyé :', response);
-    return res.status(200).json({ message: 'Ordre envoyé à Binance' });
-
-  } catch (err) {
-    console.error('❌ Erreur envoi Binance :', err.body || err);
-    return res.status(500).json({ message: 'Erreur Binance', details: err.body || err });
+  // Traitement selon le type d’ordre (buy/sell)
+  if (side.toLowerCase() === 'buy') {
+    console.log(`✅ 📥 ACHAT ${symbol} à ${price}`);
+  } else if (side.toLowerCase() === 'sell') {
+    console.log(`✅ 📤 VENTE ${symbol} à ${price}`);
+  } else {
+    console.log(`❗ SIDE inconnu : ${side}`);
+    return res.status(400).json({ error: 'SIDE non reconnu' });
   }
+
+  return res.status(200).json({ message: 'Signal reçu et authentifié' });
 });
 
 app.listen(PORT, () => {
-  console.log(`🟢 Serveur lancé sur le port ${PORT}`);
+  console.log(`🟢 Serveur sécurisé lancé sur le port ${PORT}`);
 });
