@@ -1,78 +1,78 @@
-// bot.js
-require("dotenv").config();
-const express = require("express");
-const bodyParser = require("body-parser");
-const Binance = require("node-binance-api");
-
+require('dotenv').config();
+const express = require('express');
+const bodyParser = require('body-parser');
+const Binance = require('node-binance-api');
 const app = express();
-const port = process.env.PORT || 3000;
+const PORT = process.env.PORT || 3000;
 
+// Initialise Binance API
 const binance = new Binance().options({
-  APIKEY: process.env.BINANCE_API_KEY,
-  APISECRET: process.env.BINANCE_API_SECRET,
+  APIKEY: process.env.APIKEY,
+  APISECRET: process.env.APISECRET,
   useServerTime: true,
-  test: true, // Testnet Binance
-  verbose: true,
+  test: false,
   urls: {
-    base: "https://testnet.binancefuture.com",
-  },
+    base: 'https://testnet.binancefuture.com' // Testnet Futures
+  }
 });
 
 app.use(bodyParser.json());
 
-const TOKEN = process.env.WEBHOOK_TOKEN;
+const VALID_TOKEN = "IzE5NjBBbEdlUkArPQ==";
 
-// Précisions par défaut pour certaines paires (sinon 3 décimales par défaut)
-const PRECISIONS = {
-  BTCUSDT: 3,
-  ETHUSDT: 3,
-  BNBUSDT: 2,
-};
-
-function adjustQuantity(symbol, qty) {
-  const precision = PRECISIONS[symbol] || 3;
-  return Number(parseFloat(qty).toFixed(precision));
+// 🔧 Fonction d’arrondi selon la précision du symbole
+function roundQuantity(symbol, quantity) {
+  const precisionMap = {
+    BTCUSDT: 3,
+    ETHUSDT: 3,
+    BNBUSDT: 1,
+    SOLUSDT: 2,
+    XRPUSDT: 1,
+    // Ajoute d'autres si nécessaire
+  };
+  const decimals = precisionMap[symbol.toUpperCase()] || 3;
+  return parseFloat(quantity).toFixed(decimals);
 }
 
-app.post("/webhook", async (req, res) => {
-  const data = req.body;
-  console.log("✅ Signal reçu :", data);
+app.post('/webhook', async (req, res) => {
+  const signal = req.body;
 
-  if (!data.token || data.token !== TOKEN) {
+  console.log("✅ Signal reçu :", signal);
+
+  if (!signal.token || signal.token !== VALID_TOKEN) {
     console.log("❌ Token invalide");
     return res.status(403).json({ error: "Token invalide" });
   }
 
-  const { symbol, side, price, contracts, action } = data;
-
-  if (!symbol || !side || !contracts) {
+  if (!signal.symbol || !signal.side) {
     return res.status(400).json({ error: "Paramètres manquants" });
   }
 
-  const quantity = adjustQuantity(symbol, contracts);
+  const symbol = signal.symbol.toUpperCase();
+  const side = signal.side.toLowerCase();
+  const action = signal.action || "market-test";
+  const qty = roundQuantity(symbol, signal.contracts || 0.001);
+
+  console.log(`📈 ${symbol} – ${side} – QTY=${qty} @ ${signal.price || "MARKET"}`);
 
   try {
-    console.log(`📈 ${symbol} – ${side} – QTY=${quantity} @ ${price || 'MARKET'}`);
-
-    const order = await binance.futuresOrder({
-      symbol,
-      side: side.toUpperCase(),
-      type: price ? "LIMIT" : "MARKET",
-      quantity,
-      ...(price && {
-        price,
-        timeInForce: "GTC",
-      }),
-    });
+    let order;
+    if (side === 'buy') {
+      order = await binance.futuresMarketBuy(symbol, qty);
+    } else if (side === 'sell') {
+      order = await binance.futuresMarketSell(symbol, qty);
+    } else {
+      return res.status(400).json({ error: "Côté de l'ordre non reconnu" });
+    }
 
     console.log("✅ Ordre Testnet créé :", order);
-    res.json({ message: "Ordre envoyé à Binance Testnet", order });
+    res.json({ message: "Ordre exécuté", order });
   } catch (err) {
     console.error("❌ Erreur Binance :", err);
-    res.status(500).json({ error: "Erreur Binance", details: err.body || err.message });
+    res.status(500).json({ error: "Erreur Binance", details: err.body || err });
   }
 });
 
-app.listen(port, () => {
-  console.log(`\n🟢 Serveur lancé sur le port ${port}\n`);
+app.listen(PORT, () => {
+  console.log(`🟢 Serveur lancé sur le port ${PORT}`);
 });
